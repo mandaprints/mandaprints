@@ -3,12 +3,9 @@
  *
  * Requer a variável de ambiente RESEND_API_KEY.
  *
- * O remetente abaixo é o domínio de teste do próprio Resend
- * (onboarding@resend.dev) — funciona sem verificar domínio próprio, mas
- * o Resend só entrega para o e-mail que criou a conta (modo sandbox).
- * Assim que um domínio (ex: mandaprints.com.br) for verificado em
- * resend.com/domains, troque REMETENTE_PADRAO por algo como
- * "pedidos@mandaprints.com.br" para poder enviar para qualquer cliente.
+ * O domínio mandaprints.com.br está verificado no Resend (DKIM + SPF),
+ * então o remetente usa esse domínio diretamente e entrega pra qualquer
+ * destinatário — não é mais o modo sandbox (onboarding@resend.dev).
  */
 
 interface EnviarEmailParams {
@@ -17,7 +14,7 @@ interface EnviarEmailParams {
   html: string;
 }
 
-const REMETENTE_PADRAO = "onboarding@resend.dev";
+const REMETENTE_PADRAO = "pedidos@mandaprints.com.br";
 
 export async function enviarEmail({ para, assunto, html }: EnviarEmailParams) {
   const apiKey = process.env.RESEND_API_KEY;
