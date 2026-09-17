@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Product } from "@/lib/types";
-import { calcularPrecoVariante } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
 import { useRouter } from "next/navigation";
 import ImagemComZoom from "./ImagemComZoom";
@@ -18,30 +17,55 @@ export default function ProdutoDetalhe({ produto }: { produto: Product }) {
 
   const [imagemAtiva, setImagemAtiva] = useState(0);
   const [visualizacao, setVisualizacao] = useState<"quadro" | "foto">("quadro");
-  const [tamanhoId, setTamanhoId] = useState(produto.variantes.tamanhos[0].id);
-  const [molduraId, setMolduraId] = useState(produto.variantes.molduras[0].id);
-  const [acabamentoId, setAcabamentoId] = useState(produto.variantes.acabamentos[0].id);
+  const [servicoId, setServicoId] = useState(produto.variantes.servicos[0].id);
+  const servicoAtual = produto.variantes.servicos.find((s) => s.id === servicoId)!;
+  const [tamanhoId, setTamanhoId] = useState(
+    produto.variantes.tamanhos.find((t) => servicoAtual.precos[t.id] != null)!.id
+  );
+  const [molduraId, setMolduraId] = useState(servicoAtual.molduras[0].id);
   const [adicionado, setAdicionado] = useState(false);
 
-  const preco = useMemo(
-    () => calcularPrecoVariante(produto, tamanhoId, molduraId, acabamentoId),
-    [produto, tamanhoId, molduraId, acabamentoId]
-  );
+  const preco = servicoAtual.precos[tamanhoId] ?? 0;
   const precoPix = preco * 0.95;
 
   const tamanho = produto.variantes.tamanhos.find((v) => v.id === tamanhoId)!;
-  const moldura = produto.variantes.molduras.find((v) => v.id === molduraId)!;
-  const acabamento = produto.variantes.acabamentos.find((v) => v.id === acabamentoId)!;
+  const moldura = servicoAtual.molduras.find((v) => v.id === molduraId) ?? servicoAtual.molduras[0];
+
+  function selecionarServico(id: string) {
+    const novoServico = produto.variantes.servicos.find((s) => s.id === id)!;
+    setServicoId(id);
+    setMolduraId(novoServico.molduras[0].id);
+    // Se o tamanho atual não existir nesse serviço, cai pro menor disponível.
+    if (novoServico.precos[tamanhoId] == null) {
+      const primeiroTamanho = produto.variantes.tamanhos.find(
+        (t) => novoServico.precos[t.id] != null
+      );
+      if (primeiroTamanho) setTamanhoId(primeiroTamanho.id);
+    }
+  }
+
+  function selecionarTamanho(id: string) {
+    setTamanhoId(id);
+    // Se o serviço atual não existir nesse tamanho, troca pro primeiro
+    // serviço que tiver essa combinação.
+    if (servicoAtual.precos[id] == null) {
+      const alternativo = produto.variantes.servicos.find((s) => s.precos[id] != null);
+      if (alternativo) {
+        setServicoId(alternativo.id);
+        setMolduraId(alternativo.molduras[0].id);
+      }
+    }
+  }
 
   function handleAdicionarAoCarrinho() {
     adicionar({
-      id: `${produto.slug}-${tamanhoId}-${molduraId}-${acabamentoId}`,
+      id: `${produto.slug}-${tamanhoId}-${servicoId}-${molduraId}`,
       produtoSlug: produto.slug,
       nome: produto.nome,
       imagem: produto.imagens[0],
       tamanho: tamanho.label,
       moldura: moldura.label,
-      acabamento: acabamento.label,
+      acabamento: servicoAtual.nome,
       preco,
     });
     setAdicionado(true);
@@ -124,65 +148,72 @@ export default function ProdutoDetalhe({ produto }: { produto: Product }) {
           </p>
           <h1 className="mt-1 text-2xl font-bold text-neutral-900">{produto.nome}</h1>
 
-          {/* Tamanho */}
+          {/* Serviço / tipo de impressão */}
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-neutral-900">Tipo de impressão</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {produto.variantes.servicos.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => selecionarServico(opt.id)}
+                  className={`rounded border px-3 py-2 text-sm ${
+                    opt.id === servicoId
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
+                  }`}
+                >
+                  {opt.nome}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tamanho (desabilita os que não existem para o serviço escolhido) */}
           <div className="mt-6">
             <h3 className="text-sm font-semibold text-neutral-900">Tamanho</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {produto.variantes.tamanhos.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setTamanhoId(opt.id)}
-                  className={`rounded border px-3 py-2 text-sm ${
-                    opt.id === tamanhoId
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {produto.variantes.tamanhos.map((opt) => {
+                const disponivel = servicoAtual.precos[opt.id] != null;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => selecionarTamanho(opt.id)}
+                    className={`rounded border px-3 py-2 text-sm ${
+                      opt.id === tamanhoId
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : disponivel
+                          ? "border-neutral-300 text-neutral-700 hover:border-neutral-500"
+                          : "border-neutral-200 text-neutral-400"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Moldura */}
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-neutral-900">Cor da Moldura</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {produto.variantes.molduras.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setMolduraId(opt.id)}
-                  className={`rounded border px-3 py-2 text-sm ${
-                    opt.id === molduraId
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {/* Cor da moldura — só aparece quando há mais de uma opção (ex.: Canvas puro não tem moldura) */}
+          {servicoAtual.molduras.length > 1 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-neutral-900">Cor da Moldura</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {servicoAtual.molduras.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setMolduraId(opt.id)}
+                    className={`rounded border px-3 py-2 text-sm ${
+                      opt.id === molduraId
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Acabamento / textura */}
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-neutral-900">Acabamento</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {produto.variantes.acabamentos.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setAcabamentoId(opt.id)}
-                  className={`rounded border px-3 py-2 text-sm ${
-                    opt.id === acabamentoId
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Preço */}
           <div className="mt-8 border-t border-neutral-200 pt-6">

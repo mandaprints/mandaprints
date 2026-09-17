@@ -1,4 +1,4 @@
-import { Product, Collection, ProductVariants } from "./types";
+import { Product, Collection, ProductVariants, OpcaoServico } from "./types";
 
 export const collections: Collection[] = [
   {
@@ -21,40 +21,124 @@ export const collections: Collection[] = [
   },
 ];
 
+// Tabela real de preços passada pelo cliente (Planilha_Loja_de_Quadros_Filipe_Lara.xlsx,
+// aba "Catálogo de Quadros"). ATENÇÃO: ele avisou por WhatsApp que esses valores
+// são RASCUNHO/custo — ainda vai mandar o valor de venda final. Trocar assim que
+// ele confirmar.
+const TAMANHOS = [
+  { id: "30x40", label: "30x40 cm" },
+  { id: "40x60", label: "40x60 cm" },
+  { id: "60x90", label: "60x90 cm" },
+  { id: "90x120", label: "90x120 cm" },
+  { id: "120x160", label: "120x160 cm" },
+  { id: "150x200", label: "150x200 cm" },
+];
+
+// Opções de cor/estilo de moldura (aba "Molduras"). O próprio cliente marcou
+// como "A CONFIRMAR" quais combinações valem para cada serviço — o mapeamento
+// abaixo (Laminado -> moldura 4cm, Vidro -> moldura 2cm caixinha, Canvas com
+// moldura -> moldura negativa) é a leitura mais razoável da planilha, mas
+// ainda não foi validado por ele.
+const MOLDURA_4CM = [
+  { id: "4cm-preta", label: "Moldura 4 cm — Preta lisa" },
+  { id: "4cm-branca", label: "Moldura 4 cm — Branca lisa" },
+];
+const MOLDURA_2CM_CAIXINHA = [
+  { id: "2cm-preta", label: "Moldura 2 cm caixinha — Preta" },
+  { id: "2cm-branca", label: "Moldura 2 cm caixinha — Branca" },
+];
+const MOLDURA_NEGATIVA = [
+  { id: "negativa-preta", label: "Moldura negativa — Preta" },
+  { id: "negativa-branca", label: "Moldura negativa — Branca" },
+  { id: "negativa-madeira", label: "Moldura negativa — Madeira" },
+];
+const SEM_MOLDURA = [{ id: "sem-moldura", label: "Sem moldura" }];
+
+const SERVICOS: OpcaoServico[] = [
+  {
+    id: "laminado-entrada",
+    nome: "Laminado Entrada",
+    acabamento: "Laminado",
+    material: "Papel fotográfico",
+    precos: { "30x40": 63, "40x60": 81, "60x90": 137 },
+    molduras: MOLDURA_4CM,
+  },
+  {
+    id: "laminado-premium",
+    nome: "Laminado Premium",
+    acabamento: "Laminado",
+    material: "Papel fotográfico",
+    precos: { "30x40": 79, "40x60": 114, "60x90": 202 },
+    molduras: MOLDURA_4CM,
+  },
+  {
+    id: "vidro-liso",
+    nome: "Vidro Liso",
+    acabamento: "Vidro brilho/liso",
+    material: "Papel fotográfico",
+    precos: { "30x40": 87, "40x60": 127, "60x90": 237, "90x120": 435, "120x160": 609 },
+    molduras: MOLDURA_2CM_CAIXINHA,
+  },
+  {
+    id: "vidro-fosco",
+    nome: "Vidro Fosco",
+    acabamento: "Vidro fosco",
+    material: "Papel fotográfico",
+    precos: { "30x40": 109, "40x60": 159, "60x90": 297, "90x120": 565, "120x160": 780 },
+    molduras: MOLDURA_2CM_CAIXINHA,
+  },
+  {
+    id: "canvas",
+    nome: "Canvas",
+    acabamento: "Sem vidro",
+    material: "Canvas",
+    precos: {
+      "30x40": 55,
+      "40x60": 74,
+      "60x90": 95,
+      "90x120": 160,
+      "120x160": 224,
+      "150x200": 336,
+    },
+    molduras: SEM_MOLDURA,
+  },
+  {
+    id: "canvas-moldura-negativa",
+    nome: "Canvas + Moldura Negativa",
+    acabamento: "Sem vidro",
+    material: "Canvas",
+    precos: {
+      "30x40": 86,
+      "40x60": 125,
+      "60x90": 180,
+      "90x120": 290,
+      "120x160": 395,
+      "150x200": 540,
+    },
+    molduras: MOLDURA_NEGATIVA,
+  },
+];
+
 const variantesPadrao: ProductVariants = {
-  tamanhos: [
-    { id: "40x60", label: "40x60 cm" },
-    { id: "50x75", label: "50x75 cm", priceDelta: 80 },
-    { id: "60x90", label: "60x90 cm", priceDelta: 180 },
-    { id: "80x120", label: "80x120 cm", priceDelta: 320 },
-  ],
-  molduras: [
-    { id: "sem-moldura", label: "Sem moldura" },
-    { id: "preta", label: "Moldura Preta", priceDelta: 60 },
-    { id: "branca", label: "Moldura Branca", priceDelta: 60 },
-    { id: "madeira-clara", label: "Moldura Madeira Clara", priceDelta: 75 },
-    { id: "madeira-escura", label: "Moldura Madeira Escura", priceDelta: 75 },
-    { id: "dourada", label: "Moldura Dourada", priceDelta: 90 },
-  ],
-  acabamentos: [
-    { id: "sem-vidro", label: "Sem vidro (tela canvas)" },
-    { id: "com-vidro", label: "Com vidro", priceDelta: 45 },
-  ],
+  tamanhos: TAMANHOS,
+  servicos: SERVICOS,
 };
+
+// "A partir de": menor preço entre todos os serviços/tamanhos — usado no
+// card de listagem.
+const precoAPartirDe = Math.min(
+  ...SERVICOS.flatMap((s) => Object.values(s.precos))
+);
 
 type FotoInfo = { arquivo: string; titulo: string; descricao: string };
 
-function gerarProdutosColecao(
-  colecaoSlug: string,
-  fotos: FotoInfo[],
-  precoInicial: number
-): Product[] {
+function gerarProdutosColecao(colecaoSlug: string, fotos: FotoInfo[]): Product[] {
   return fotos.map((foto, i) => ({
     slug: `${colecaoSlug}-${i + 1}`,
     nome: foto.titulo,
     colecao: colecaoSlug,
     referencia: `FL-${colecaoSlug.slice(0, 3).toUpperCase()}${String(i + 1).padStart(2, "0")}`,
-    precoBase: precoInicial + i * 15,
+    precoBase: precoAPartirDe,
     imagens: [`/images/${colecaoSlug}/${foto.arquivo}`],
     descricao: foto.descricao,
     variantes: variantesPadrao,
@@ -281,8 +365,16 @@ const fotosNyc: FotoInfo[] = [
 // direto pela URL /produtos/teste-checkout. Remover quando não precisar mais.
 const variantesTeste: ProductVariants = {
   tamanhos: [{ id: "unico", label: "Tamanho único" }],
-  molduras: [{ id: "sem-moldura", label: "Sem moldura" }],
-  acabamentos: [{ id: "sem-vidro", label: "Sem vidro" }],
+  servicos: [
+    {
+      id: "teste",
+      nome: "Sem vidro",
+      acabamento: "Sem vidro",
+      material: "Teste",
+      precos: { unico: 0.1 },
+      molduras: [{ id: "sem-moldura", label: "Sem moldura" }],
+    },
+  ],
 };
 
 const produtoTeste: Product = {
@@ -297,9 +389,9 @@ const produtoTeste: Product = {
 };
 
 export const products: Product[] = [
-  ...gerarProdutosColecao("indonesia", fotosIndonesia, 289),
-  ...gerarProdutosColecao("islandia", fotosIslandia, 319),
-  ...gerarProdutosColecao("nyc", fotosNyc, 299),
+  ...gerarProdutosColecao("indonesia", fotosIndonesia),
+  ...gerarProdutosColecao("islandia", fotosIslandia),
+  ...gerarProdutosColecao("nyc", fotosNyc),
   produtoTeste,
 ];
 
@@ -311,19 +403,8 @@ export function getProductsByCollection(colecaoSlug: string) {
   return products.filter((p) => p.colecao === colecaoSlug);
 }
 
-export function calcularPrecoVariante(
-  produto: Product,
-  tamanhoId: string,
-  molduraId: string,
-  acabamentoId: string
-) {
-  const t = produto.variantes.tamanhos.find((v) => v.id === tamanhoId);
-  const m = produto.variantes.molduras.find((v) => v.id === molduraId);
-  const a = produto.variantes.acabamentos.find((v) => v.id === acabamentoId);
-  return (
-    produto.precoBase +
-    (t?.priceDelta || 0) +
-    (m?.priceDelta || 0) +
-    (a?.priceDelta || 0)
-  );
+// Preço de um serviço num tamanho específico. undefined se essa combinação
+// não existir no catálogo (ex.: Laminado em 90x120).
+export function getPrecoServico(servico: OpcaoServico, tamanhoId: string) {
+  return servico.precos[tamanhoId];
 }
