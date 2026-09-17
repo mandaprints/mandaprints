@@ -166,6 +166,7 @@ export default function ProdutoDetalhe({ produto }: { produto: Product }) {
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-neutral-500">Material: {servicoAtual.material}</p>
           </div>
 
           {/* Tamanho (desabilita os que não existem para o serviço escolhido) */}
