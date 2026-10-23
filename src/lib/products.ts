@@ -1,4 +1,4 @@
-import { Product, Collection, ProductVariants, OpcaoServico } from "./types";
+import { Product, Collection, ProductVariants, OpcaoServico, LogisticaEmbalagem } from "./types";
 
 export const collections: Collection[] = [
   {
@@ -54,6 +54,29 @@ const MOLDURA_NEGATIVA = [
 ];
 const SEM_MOLDURA = [{ id: "sem-moldura", label: "Sem moldura" }];
 
+// Dados de expedição do PDF "FILIPE LARA CÁLCULO DE PESOS E MEDIDAS DE QUADROS".
+// O PDF informa só 2 medidas da caixa (ex.: 42x52) e o peso total já com
+// embalagem; a espessura NÃO foi informada. Estimativa por tipo de embalagem
+// (bolha+papelão = quadro fino; caixa de madeira = vidro com cantoneiras) —
+// confirmar com o cliente, porque muda o peso cubado cobrado pela transportadora.
+type TipoEmbalagem = "bolha" | "madeira";
+const ESPESSURA_ESTIMADA_CM: Record<TipoEmbalagem, number> = { bolha: 6, madeira: 12 };
+
+function emb(
+  tipo: TipoEmbalagem,
+  medidaCm: [number, number],
+  pesoKg: number,
+  valorEmbalagem: number
+): LogisticaEmbalagem {
+  return {
+    pesoKg,
+    comprimentoCm: Math.max(...medidaCm),
+    larguraCm: Math.min(...medidaCm),
+    alturaCm: ESPESSURA_ESTIMADA_CM[tipo],
+    valorEmbalagem,
+  };
+}
+
 const SERVICOS: OpcaoServico[] = [
   {
     id: "laminado-entrada",
@@ -61,6 +84,11 @@ const SERVICOS: OpcaoServico[] = [
     acabamento: "Laminado",
     material: "Papel fotográfico",
     precos: { "30x40": 63, "40x60": 81, "60x90": 137 },
+    logistica: {
+      "30x40": emb("bolha", [42, 52], 1, 3.5),
+      "40x60": emb("bolha", [52, 72], 2, 7),
+      "60x90": emb("bolha", [72, 102], 5, 20),
+    },
     molduras: MOLDURA_4CM,
   },
   {
@@ -69,6 +97,11 @@ const SERVICOS: OpcaoServico[] = [
     acabamento: "Laminado",
     material: "Papel fotográfico",
     precos: { "30x40": 79, "40x60": 114, "60x90": 202 },
+    logistica: {
+      "30x40": emb("bolha", [42, 52], 1, 3.5),
+      "40x60": emb("bolha", [52, 72], 2, 7),
+      "60x90": emb("bolha", [72, 102], 5, 20),
+    },
     molduras: MOLDURA_4CM,
   },
   {
@@ -77,6 +110,13 @@ const SERVICOS: OpcaoServico[] = [
     acabamento: "Vidro brilho/liso",
     material: "Papel fotográfico",
     precos: { "30x40": 87, "40x60": 127, "60x90": 237, "90x120": 435, "120x160": 609 },
+    logistica: {
+      "30x40": emb("bolha", [42, 52], 1.45, 5),
+      "40x60": emb("madeira", [52, 72], 5.7, 30.85),
+      "60x90": emb("madeira", [78, 110], 11.1, 54),
+      "90x120": emb("madeira", [108, 138], 22.2, 87.68),
+      "120x160": emb("madeira", [138, 178], 39.8, 118.1),
+    },
     molduras: MOLDURA_2CM_CAIXINHA,
   },
   {
@@ -85,6 +125,13 @@ const SERVICOS: OpcaoServico[] = [
     acabamento: "Vidro fosco",
     material: "Papel fotográfico",
     precos: { "30x40": 109, "40x60": 159, "60x90": 297, "90x120": 565, "120x160": 780 },
+    logistica: {
+      "30x40": emb("bolha", [42, 52], 1.45, 5),
+      "40x60": emb("madeira", [52, 72], 5.5, 30.85),
+      "60x90": emb("madeira", [78, 110], 11.1, 54),
+      "90x120": emb("madeira", [108, 138], 22.2, 87.68),
+      "120x160": emb("madeira", [138, 178], 39.8, 118.1),
+    },
     molduras: MOLDURA_2CM_CAIXINHA,
   },
   {
@@ -100,6 +147,14 @@ const SERVICOS: OpcaoServico[] = [
       "120x160": 224,
       "150x200": 336,
     },
+    logistica: {
+      "30x40": emb("bolha", [36, 46], 1, 3.5),
+      "40x60": emb("bolha", [46, 66], 2, 10),
+      "60x90": emb("bolha", [66, 96], 5, 20),
+      "90x120": emb("bolha", [96, 126], 10, 40),
+      "120x160": emb("bolha", [126, 166], 18, 48),
+      "150x200": emb("bolha", [156, 206], 28, 93),
+    },
     molduras: SEM_MOLDURA,
   },
   {
@@ -114,6 +169,14 @@ const SERVICOS: OpcaoServico[] = [
       "90x120": 290,
       "120x160": 395,
       "150x200": 540,
+    },
+    logistica: {
+      "30x40": emb("bolha", [42, 52], 1.2, 3.5),
+      "40x60": emb("bolha", [52, 72], 2.5, 10),
+      "60x90": emb("bolha", [72, 102], 5.5, 20),
+      "90x120": emb("bolha", [102, 132], 11, 40),
+      "120x160": emb("bolha", [132, 172], 19, 48),
+      "150x200": emb("bolha", [168, 218], 30, 93),
     },
     molduras: MOLDURA_NEGATIVA,
   },
@@ -372,6 +435,7 @@ const variantesTeste: ProductVariants = {
       acabamento: "Sem vidro",
       material: "Teste",
       precos: { unico: 0.1 },
+      logistica: { unico: { pesoKg: 1, comprimentoCm: 42, larguraCm: 52, alturaCm: 6, valorEmbalagem: 0 } },
       molduras: [{ id: "sem-moldura", label: "Sem moldura" }],
     },
   ],

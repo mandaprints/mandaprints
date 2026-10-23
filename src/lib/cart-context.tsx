@@ -5,6 +5,10 @@ import { createContext, useContext, useState, ReactNode, useEffect } from "react
 export interface CartItem {
   id: string; // slug + variantes combinadas
   produtoSlug: string;
+  // IDs usados no cálculo de frete (servidor busca peso/medidas no catálogo).
+  // Opcionais: carrinhos salvos no navegador antes deste campo existir não têm.
+  tamanhoId?: string;
+  servicoId?: string;
   nome: string;
   imagem: string;
   tamanho: string;

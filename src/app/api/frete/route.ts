@@ -1,4 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getProductBySlug } from "@/lib/products";
+
+interface ItemFrete {
+  produtoSlug: string;
+  tamanhoId?: string;
+  servicoId?: string;
+  quantidade: number;
+  preco: number;
+}
+
+// Embalagem padrão quando o item não tem tamanho/serviço identificável
+// (ex.: carrinho salvo no navegador antes dos IDs existirem).
+const EMBALAGEM_PADRAO = { height: 10, width: 60, length: 90, weight: 3 };
+
+// Peso/medidas vêm do catálogo no servidor (PDF de pesos e medidas do
+// cliente), não do que o navegador manda.
+function volumesDoCarrinho(itens: ItemFrete[]) {
+  return itens.map((item, i) => {
+    const produto = getProductBySlug(item.produtoSlug);
+    const servico = produto?.variantes.servicos.find((s) => s.id === item.servicoId);
+    const log = item.tamanhoId ? servico?.logistica[item.tamanhoId] : undefined;
+    const dim = log
+      ? {
+          height: log.alturaCm,
+          width: log.larguraCm,
+          length: log.comprimentoCm,
+          weight: log.pesoKg,
+        }
+      : EMBALAGEM_PADRAO;
+    return {
+      id: String(i + 1),
+      ...dim,
+      insurance_value: item.preco,
+      quantity: Math.max(1, item.quantidade),
+    };
+  });
+}
 
 /**
  * Cota o frete via API do Melhor Envio.
@@ -12,7 +49,10 @@ import { NextRequest, NextResponse } from "next/server";
  * simulada para permitir o desenvolvimento e testes do front-end.
  */
 export async function POST(req: NextRequest) {
-  const { cepDestino } = (await req.json()) as { cepDestino: string };
+  const { cepDestino, itens } = (await req.json()) as {
+    cepDestino: string;
+    itens?: ItemFrete[];
+  };
   const token = process.env.MELHOR_ENVIO_TOKEN;
   const cepOrigem = process.env.MELHOR_ENVIO_CEP_ORIGEM;
 
@@ -36,8 +76,9 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       from: { postal_code: cepOrigem },
       to: { postal_code: cepDestino.replace(/\D/g, "") },
-      // Dimensões padrão de um quadro embalado — ajustar conforme o tamanho real.
-      package: { height: 10, width: 60, length: 90, weight: 3 },
+      products: itens?.length
+        ? volumesDoCarrinho(itens)
+        : [{ id: "1", ...EMBALAGEM_PADRAO, insurance_value: 0, quantity: 1 }],
     }),
   });
 

@@ -80,7 +80,16 @@ export default function CarrinhoPage() {
       const resp = await fetch("/api/frete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cepDestino: cepLimpo }),
+        body: JSON.stringify({
+          cepDestino: cepLimpo,
+          itens: itens.map((i) => ({
+            produtoSlug: i.produtoSlug,
+            tamanhoId: i.tamanhoId,
+            servicoId: i.servicoId,
+            quantidade: i.quantidade,
+            preco: i.preco,
+          })),
+        }),
       });
       const data = await resp.json();
       if (data.opcoes?.[0]) {

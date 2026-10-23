@@ -11,6 +11,18 @@ export interface OpcaoMoldura {
   label: string;
 }
 
+// Dados de expedição de um quadro já embalado (PDF "Cálculo de pesos e
+// medidas de quadros" do cliente).
+export interface LogisticaEmbalagem {
+  pesoKg: number; // peso total: quadro + embalagem
+  comprimentoCm: number;
+  larguraCm: number;
+  // O PDF só informa 2 medidas (ex.: 42x52). A espessura NÃO veio do
+  // cliente — é estimada por tipo de embalagem (ver products.ts).
+  alturaCm: number;
+  valorEmbalagem: number; // custo da embalagem em reais (informativo)
+}
+
 // Um "serviço" é uma combinação real do catálogo do fornecedor (ex.:
 // "Laminado Premium", "Vidro Fosco", "Canvas + Moldura Negativa"). Cada
 // serviço tem seu próprio preço por tamanho — não é um preço base + soma de
@@ -23,6 +35,8 @@ export interface OpcaoServico {
   // tamanhoId -> preço em reais. Um serviço pode não estar disponível em
   // todos os tamanhos (ex.: Laminado só vai até 60x90).
   precos: Record<string, number>;
+  // tamanhoId -> dados de expedição (mesmas chaves de `precos`).
+  logistica: Record<string, LogisticaEmbalagem>;
   // Opções de cor/estilo de moldura aplicáveis a este serviço. Sempre tem
   // pelo menos uma entrada ("Sem moldura" para os que não levam moldura).
   molduras: OpcaoMoldura[];

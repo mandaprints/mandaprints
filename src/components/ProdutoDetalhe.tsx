@@ -61,6 +61,8 @@ export default function ProdutoDetalhe({ produto }: { produto: Product }) {
     adicionar({
       id: `${produto.slug}-${tamanhoId}-${servicoId}-${molduraId}`,
       produtoSlug: produto.slug,
+      tamanhoId,
+      servicoId,
       nome: produto.nome,
       imagem: produto.imagens[0],
       tamanho: tamanho.label,
