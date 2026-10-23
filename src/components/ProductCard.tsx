@@ -10,7 +10,6 @@ function formatarPreco(valor: number) {
 }
 
 export default function ProductCard({ produto }: { produto: Product }) {
-  const precoPix = produto.precoBase * 0.95;
   const [mostrarMockup, setMostrarMockup] = useState(true);
 
   useEffect(() => {
@@ -41,8 +40,8 @@ export default function ProductCard({ produto }: { produto: Product }) {
       </div>
       <div className="p-3">
         <p className="line-clamp-2 text-sm text-neutral-800">{produto.nome}</p>
-        <p className="mt-2 text-xs text-neutral-500">no PIX a partir de:</p>
-        <p className="text-base font-semibold text-neutral-900">{formatarPreco(precoPix)}</p>
+        <p className="mt-2 text-xs text-neutral-500">a partir de:</p>
+        <p className="text-base font-semibold text-neutral-900">{formatarPreco(produto.precoBase)}</p>
       </div>
     </Link>
   );
