@@ -9,95 +9,101 @@ interface ItemFrete {
   preco: number;
 }
 
-// Embalagem padrão quando o item não tem tamanho/serviço identificável
-// (ex.: carrinho salvo no navegador antes dos IDs existirem).
-const EMBALAGEM_PADRAO = { height: 10, width: 60, length: 90, weight: 3 };
+// Taxa mecanizada da matriz Jadlog: não vem no valor devolvido pela API e
+// precisa ser somada manualmente ao frete (combustível, manuseio, GRIS, ad
+// valorem e seguro) — instrução da própria Jadlog/FCB.
+const TAXA_MATRIZ = 7;
 
-// Peso/medidas vêm do catálogo no servidor (PDF de pesos e medidas do
-// cliente), não do que o navegador manda.
-function volumesDoCarrinho(itens: ItemFrete[]) {
-  return itens.map((item, i) => {
+// Modalidade negociada no contrato: 3 = .Package (a mais barata das que o
+// contrato da FCB aceita nos testes: .Package, Rodoviário, Econômico, Expresso...).
+const MODALIDADE = 3;
+
+// Peso usado quando o item não tem tamanho/serviço identificável (carrinho
+// salvo no navegador antes dos IDs existirem).
+const PESO_PADRAO_KG = 3;
+
+// Peso total (com embalagem) vem do catálogo no servidor, não do navegador.
+function pesoTotalKg(itens: ItemFrete[]) {
+  const total = itens.reduce((acc, item) => {
     const produto = getProductBySlug(item.produtoSlug);
     const servico = produto?.variantes.servicos.find((s) => s.id === item.servicoId);
-    const log = item.tamanhoId ? servico?.logistica[item.tamanhoId] : undefined;
-    const dim = log
-      ? {
-          height: log.alturaCm,
-          width: log.larguraCm,
-          length: log.comprimentoCm,
-          weight: log.pesoKg,
-        }
-      : EMBALAGEM_PADRAO;
-    return {
-      id: String(i + 1),
-      ...dim,
-      insurance_value: item.preco,
-      quantity: Math.max(1, item.quantidade),
-    };
-  });
+    const peso = (item.tamanhoId && servico?.logistica[item.tamanhoId]?.pesoKg) || PESO_PADRAO_KG;
+    return acc + peso * Math.max(1, item.quantidade);
+  }, 0);
+  return Math.round(total * 100) / 100;
 }
 
 /**
- * Cota o frete via API do Melhor Envio.
+ * Cota o frete via API da Jadlog (franquia FCB) — Simulador de Frete.
  *
- * Requer as variáveis de ambiente:
- * - MELHOR_ENVIO_TOKEN: token de integração gerado em
- *   melhorenvio.com.br > Configurações > Tokens de Integração.
- * - MELHOR_ENVIO_CEP_ORIGEM: CEP de onde o fornecedor despacha os produtos.
+ * Variáveis de ambiente:
+ * - JADLOG_TOKEN: token da API (vai no header "Authorization: Bearer <token>").
+ * - JADLOG_CNPJ: CNPJ do tomador (campo "Usuário" dos dados de acesso).
+ * - FRETE_CEP_ORIGEM: CEP de onde o fornecedor despacha os quadros.
  *
- * Enquanto essas variáveis não estiverem configuradas, retorna uma cotação
- * simulada para permitir o desenvolvimento e testes do front-end.
+ * Enquanto não estiverem configuradas, devolve uma cotação simulada para
+ * permitir testes do front-end.
  */
 export async function POST(req: NextRequest) {
   const { cepDestino, itens } = (await req.json()) as {
     cepDestino: string;
     itens?: ItemFrete[];
   };
-  const token = process.env.MELHOR_ENVIO_TOKEN;
-  const cepOrigem = process.env.MELHOR_ENVIO_CEP_ORIGEM;
+  const token = process.env.JADLOG_TOKEN;
+  const cnpj = process.env.JADLOG_CNPJ;
+  const cepOrigem = process.env.FRETE_CEP_ORIGEM;
 
-  if (!token || !cepOrigem) {
-    // Cotação simulada — remover assim que as credenciais reais forem configuradas.
+  if (!token || !cnpj || !cepOrigem) {
     return NextResponse.json({
       simulado: true,
-      opcoes: [
-        { nome: "Transportadora (simulado)", preco: 39.9, prazo: "5 a 8 dias úteis" },
-      ],
+      opcoes: [{ nome: "Transportadora (simulado)", preco: 39.9, prazo: "5 a 8 dias úteis" }],
     });
   }
 
-  const resp = await fetch("https://www.melhorenvio.com.br/api/v2/me/shipment/calculate", {
+  const resp = await fetch("https://www.jadlog.com.br/embarcador/api/frete/valor", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      from: { postal_code: cepOrigem },
-      to: { postal_code: cepDestino.replace(/\D/g, "") },
-      products: itens?.length
-        ? volumesDoCarrinho(itens)
-        : [{ id: "1", ...EMBALAGEM_PADRAO, insurance_value: 0, quantity: 1 }],
+      frete: [
+        {
+          cepori: cepOrigem.replace(/\D/g, ""),
+          cepdes: cepDestino.replace(/\D/g, ""),
+          frap: "N",
+          peso: itens?.length ? pesoTotalKg(itens) : PESO_PADRAO_KG,
+          cnpj: cnpj.replace(/\D/g, ""),
+          conta: null,
+          contrato: null,
+          modalidade: MODALIDADE,
+          tpentrega: "D",
+          tpseguro: "N",
+          vldeclarado: itens?.reduce((acc, i) => acc + i.preco * Math.max(1, i.quantidade), 0) ?? 0,
+          vlcoleta: 0,
+        },
+      ],
     }),
   });
 
-  if (!resp.ok) {
-    const erro = await resp.text();
-    return NextResponse.json({ error: "Falha ao cotar frete", detalhe: erro }, { status: 502 });
+  const dados = await resp.json().catch(() => null);
+  const cotacao = dados?.frete?.[0];
+
+  if (!resp.ok || dados?.error || typeof cotacao?.vltotal !== "number") {
+    return NextResponse.json(
+      { error: "Falha ao cotar frete", detalhe: dados?.error ?? resp.status },
+      { status: 502 }
+    );
   }
 
-  const cotacoes = await resp.json();
-
-  const opcoes = (cotacoes as Array<{ name: string; price: string; delivery_time: number }>)
-    .filter((c) => c.price)
-    .map((c) => ({
-      nome: c.name,
-      preco: Number(c.price),
-      prazo: `${c.delivery_time} dias úteis`,
-    }))
-    // Mais barata primeiro — o carrinho usa a primeira opção como padrão.
-    .sort((a, b) => a.preco - b.preco);
-
-  return NextResponse.json({ simulado: false, opcoes });
+  return NextResponse.json({
+    simulado: false,
+    opcoes: [
+      {
+        nome: "Jadlog .Package",
+        preco: Math.round((cotacao.vltotal + TAXA_MATRIZ) * 100) / 100,
+        prazo: `${cotacao.prazo} dias úteis`,
+      },
+    ],
+  });
 }

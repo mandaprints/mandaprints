@@ -1,4 +1,4 @@
-import { Product, Collection, ProductVariants, OpcaoServico, LogisticaEmbalagem } from "./types";
+import { Product, Collection, ProductVariants, OpcaoServico } from "./types";
 
 export const collections: Collection[] = [
   {
@@ -53,21 +53,8 @@ const MOLDURA_NEGATIVA = [
 ];
 const SEM_MOLDURA = [{ id: "sem-moldura", label: "Sem moldura" }];
 
-// Dados de expedição do PDF "FILIPE LARA CÁLCULO DE PESOS E MEDIDAS DE QUADROS".
-// O peso é sempre o TOTAL com embalagem, e os preços de `precos` já são o
-// "TOTAL C/ EMB." do PDF. O PDF só traz 2 medidas da caixa; a espessura não
-// importa pro cálculo (vale o peso total), mas a API de frete exige uma altura,
-// então usamos um valor fixo.
-const ESPESSURA_CAIXA_CM = 10;
-
-function emb(medidaCm: [number, number], pesoKg: number): LogisticaEmbalagem {
-  return {
-    pesoKg,
-    comprimentoCm: Math.max(...medidaCm),
-    larguraCm: Math.min(...medidaCm),
-    alturaCm: ESPESSURA_CAIXA_CM,
-  };
-}
+// Peso TOTAL (quadro + embalagem) de cada combinação, do PDF "FILIPE LARA CÁLCULO
+// DE PESOS E MEDIDAS DE QUADROS". É o único dado de expedição que o frete usa.
 
 const SERVICOS: OpcaoServico[] = [
   {
@@ -77,9 +64,9 @@ const SERVICOS: OpcaoServico[] = [
     material: "Papel fotográfico",
     precos: { "30x40": 66.5, "40x60": 88, "60x90": 157 },
     logistica: {
-      "30x40": emb([42, 52], 1),
-      "40x60": emb([52, 72], 2),
-      "60x90": emb([72, 102], 5),
+      "30x40": { pesoKg: 1 },
+      "40x60": { pesoKg: 2 },
+      "60x90": { pesoKg: 5 },
     },
     molduras: MOLDURA_4CM,
   },
@@ -90,9 +77,9 @@ const SERVICOS: OpcaoServico[] = [
     material: "Papel fotográfico",
     precos: { "30x40": 82.5, "40x60": 121, "60x90": 222 },
     logistica: {
-      "30x40": emb([42, 52], 1),
-      "40x60": emb([52, 72], 2),
-      "60x90": emb([72, 102], 5),
+      "30x40": { pesoKg: 1 },
+      "40x60": { pesoKg: 2 },
+      "60x90": { pesoKg: 5 },
     },
     molduras: MOLDURA_4CM,
   },
@@ -103,11 +90,11 @@ const SERVICOS: OpcaoServico[] = [
     material: "Papel fotográfico",
     precos: { "30x40": 92, "40x60": 157.85, "60x90": 291, "90x120": 522.68, "120x160": 727.1 },
     logistica: {
-      "30x40": emb([42, 52], 1.45),
-      "40x60": emb([52, 72], 5.7),
-      "60x90": emb([78, 110], 11.1),
-      "90x120": emb([108, 138], 22.2),
-      "120x160": emb([138, 178], 39.8),
+      "30x40": { pesoKg: 1.45 },
+      "40x60": { pesoKg: 5.7 },
+      "60x90": { pesoKg: 11.1 },
+      "90x120": { pesoKg: 22.2 },
+      "120x160": { pesoKg: 39.8 },
     },
     molduras: MOLDURA_2CM_CAIXINHA,
   },
@@ -118,11 +105,11 @@ const SERVICOS: OpcaoServico[] = [
     material: "Papel fotográfico",
     precos: { "30x40": 114, "40x60": 189.85, "60x90": 351, "90x120": 652.68, "120x160": 898.1 },
     logistica: {
-      "30x40": emb([42, 52], 1.45),
-      "40x60": emb([52, 72], 5.5),
-      "60x90": emb([78, 110], 11.1),
-      "90x120": emb([108, 138], 22.2),
-      "120x160": emb([138, 178], 39.8),
+      "30x40": { pesoKg: 1.45 },
+      "40x60": { pesoKg: 5.5 },
+      "60x90": { pesoKg: 11.1 },
+      "90x120": { pesoKg: 22.2 },
+      "120x160": { pesoKg: 39.8 },
     },
     molduras: MOLDURA_2CM_CAIXINHA,
   },
@@ -140,12 +127,12 @@ const SERVICOS: OpcaoServico[] = [
       "150x200": 429,
     },
     logistica: {
-      "30x40": emb([36, 46], 1),
-      "40x60": emb([46, 66], 2),
-      "60x90": emb([66, 96], 5),
-      "90x120": emb([96, 126], 10),
-      "120x160": emb([126, 166], 18),
-      "150x200": emb([156, 206], 28),
+      "30x40": { pesoKg: 1 },
+      "40x60": { pesoKg: 2 },
+      "60x90": { pesoKg: 5 },
+      "90x120": { pesoKg: 10 },
+      "120x160": { pesoKg: 18 },
+      "150x200": { pesoKg: 28 },
     },
     molduras: SEM_MOLDURA,
   },
@@ -163,12 +150,12 @@ const SERVICOS: OpcaoServico[] = [
       "150x200": 633,
     },
     logistica: {
-      "30x40": emb([42, 52], 1.2),
-      "40x60": emb([52, 72], 2.5),
-      "60x90": emb([72, 102], 5.5),
-      "90x120": emb([102, 132], 11),
-      "120x160": emb([132, 172], 19),
-      "150x200": emb([168, 218], 30),
+      "30x40": { pesoKg: 1.2 },
+      "40x60": { pesoKg: 2.5 },
+      "60x90": { pesoKg: 5.5 },
+      "90x120": { pesoKg: 11 },
+      "120x160": { pesoKg: 19 },
+      "150x200": { pesoKg: 30 },
     },
     molduras: MOLDURA_NEGATIVA,
   },
@@ -427,7 +414,7 @@ const variantesTeste: ProductVariants = {
       acabamento: "Sem vidro",
       material: "Teste",
       precos: { unico: 0.1 },
-      logistica: { unico: { pesoKg: 1, comprimentoCm: 42, larguraCm: 52, alturaCm: 10 } },
+      logistica: { unico: { pesoKg: 1 } },
       molduras: [{ id: "sem-moldura", label: "Sem moldura" }],
     },
   ],

@@ -12,12 +12,9 @@ export interface OpcaoMoldura {
 }
 
 // Dados de expedição de um quadro já embalado (PDF "Cálculo de pesos e
-// medidas de quadros" do cliente). O peso é sempre o total com embalagem.
+// medidas de quadros" do cliente). Só o peso importa pro frete.
 export interface LogisticaEmbalagem {
-  pesoKg: number;
-  comprimentoCm: number;
-  larguraCm: number;
-  alturaCm: number; // o PDF só traz 2 medidas; valor fixo (ver products.ts)
+  pesoKg: number; // peso total: quadro + embalagem
 }
 
 // Um "serviço" é uma combinação real do catálogo do fornecedor (ex.:
