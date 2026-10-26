@@ -130,7 +130,11 @@ export default function CarrinhoPage() {
       const data = await resp.json();
       if (data.init_point) {
         window.location.href = data.init_point;
+      } else {
+        alert(data.error || "Não foi possível finalizar a compra. Tente novamente.");
       }
+    } catch {
+      alert("Não foi possível finalizar a compra. Tente novamente.");
     } finally {
       setFinalizando(false);
     }

@@ -56,10 +56,17 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
     pedidoId = data.id;
   } catch (err) {
-    // Não bloqueia o checkout se o Supabase ainda não estiver configurado —
-    // apenas registra no log do servidor para investigação. Sem pedidoId,
-    // o webhook não vai conseguir localizar esse pedido depois.
     console.error("Falha ao salvar pedido no Supabase:", err);
+  }
+
+  // Sem o pedido salvo o webhook não consegue localizá-lo depois do pagamento
+  // (nem e-mails, nem painel) — melhor recusar do que cobrar um pedido
+  // "fantasma".
+  if (!pedidoId) {
+    return NextResponse.json(
+      { error: "Não foi possível registrar o pedido agora. Tente novamente em instantes." },
+      { status: 503 }
+    );
   }
 
   const items = body.itens.map((item) => ({
